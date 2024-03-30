@@ -28,28 +28,6 @@ const s3Client = new S3Client({
   },
 });
 
-// Example function to list files by user ID
-// const listFilesByUserId = async (userId) => {
-//   const prefix = `users/${userId}/`; // Adjust based on your actual file structure in S3
-//   const params = {
-//     Bucket: process.env.BUCKET_NAME,
-//     Prefix: prefix,
-//   };
-
-//   try {
-//     const command = new ListObjectsV2Command(params);
-//     const data = await s3Client.send(command);
-//     return data.Contents.map((video) => ({
-//       name: video.Key,
-//       objectUrl: `https://${params.Bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/${video.Key}`,
-//       size: video.Size,
-//       lastModified: video.LastModified,
-//     }));
-//   } catch (error) {
-//     console.error("Error listing files by user ID:", error);
-//     throw error;
-//   }
-// };
 
 
 export const uploadBufferToS3 = async (buffer, metaDataObject) => {

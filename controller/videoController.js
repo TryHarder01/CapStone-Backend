@@ -12,12 +12,10 @@ import {
   getVideoByTitle,
   createVideo,
   createInitialVideoMetadata,
-  updateVonageVideoMetadata,
-  saveRecordingDetails,
+  updateForVonageVideoMetadataUpload,
+  saveRecordingDetailsTodDb,
   updateVideo,
   deleteVideo,
-  saveRecordingDetailsTodDb,
-  updateForVonageVideoMetadataUpload,
 } from "../queries/videos.js";
 
 const opentok = new OpenTok(
@@ -129,6 +127,20 @@ console.log(archive)
   }
 };
 
+const getArchiveUrlFromVonage = async (videoUrl, outputPath) => {
+  const response = await fetch(videoUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch video: ${response.statusText}`);
+  }
+  
+  await new Promise((resolve, reject) => {
+    const fileStream = fs.createWriteStream(outputPath);
+    response.body.pipe(fileStream);
+    response.body.on('error', reject);
+    fileStream.on('finish', resolve);
+  });
+};
+
 const stopVideoRecording = async (req, res) => {
   const { archiveId } = req.body;
   console.log(req.body)
@@ -145,7 +157,6 @@ const stopVideoRecording = async (req, res) => {
       console.log('[stopVideoRecording] Recording stopped successfully:', archiveId);
       try{
         const archive = await checkArchiveAvailability(archiveId);
-        console.log(archive)
         let savedDetails = null;
         if (archive && archive.status === 'available') {
           const metaDataObject = {
@@ -153,11 +164,13 @@ const stopVideoRecording = async (req, res) => {
             video_url: archive.url, 
           }; 
           savedDetails = await saveRecordingDetailsTodDb(metaDataObject);
-        }
-                  console.log("Before the saveDetails:", archive)
+        };
+        const outputPath = `./utility/${archiveId}.mp4`;
+        await getArchiveUrlFromVonage(archive.url, outputPath);
+        console.log(`Video downloaded to local:, ${outputPath}`)
         console.log("saveRecordingDetails waiting for results:", archiveId);
       res.json({
-        message: 'Recording stopped and metadata updated',savedDetails 
+        message: 'Recording stopped and metadata updated',savedDetails, downloadPath: outputPath 
       });
     } catch (error) {
       throw new Error(`Error processing archive: ${error.message}`)
@@ -175,12 +188,11 @@ const stopVideoRecording = async (req, res) => {
 
 const downloadArchive = async (archiveUrl, filename) => {
   const response = await fetch(archiveUrl);
-  const addMetaObject = await updateForVonageVideoMetadataUpload();
   if (!response.ok) {
     throw new Error('Failed to download archive file');
   }
 
-  const dest = fs.createWriteStream(`./uploads/${filename}`);
+  const dest = fs.createWriteStream(`./utility/${filename}`);
   response.body.pipe(dest);
 
   return new Promise((resolve, reject) => {
